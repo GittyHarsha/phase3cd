@@ -424,7 +424,7 @@
 	void printSymbolTable(){
         printf("%10s | %18s | %10s | %10s | %10s | %10s | %10s | %10s | %10s\n","SYMBOL", "CLASS", "TYPE","VALUE","DIMENSIONS","PARAMETERS","PARAMETER COUNT", "NESTING", "LINE NO");
 		for(int i = 0; i < 1000; ++i){
-			if(ST[i].exist == 0)
+			if(ST[i].exist == 0 )
 				continue;
 			printf("%10s | %18s | %10s | %10s | %10s | %10s | %15d | %10d | %d\n", ST[i].symbol_name, ST[i].class, ST[i].symbol_type, ST[i].value,ST[i].array_dimensions,ST[i].parameters, ST[i].params_count, ST[i].nested_val,ST[i].line_number);
 		}
@@ -485,6 +485,7 @@ IN "include"
 "}"                                          {return *yytext;}
 ","                                          {return *yytext;}
 ";"                                          {return *yytext;}
+":"											 {return *yytext;}
 
 
 
