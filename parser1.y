@@ -36,7 +36,8 @@
 	char currfunccall[100];
 	extern int params_count;
 	int call_params_count;
-
+	int nested_loop=0;
+	
 %}
 
 %nonassoc IF
@@ -191,7 +192,7 @@ extended_parameter
 statement
 			: expression_statment | multiple_statement
 			| conditional_statements | iterative_statements
-			| return_statement | break_statement
+			| return_statement | break_statement | continue_statement
 			| variable_dec;
 
 multiple_statement
@@ -213,9 +214,9 @@ extended_conditional_statements
 			| ;
 
 iterative_statements
-			: WHILE '(' simple_expression ')'{if($3!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} statement
-			| FOR '(' for_initialization simple_expression ';' {if($4!=1){yyerror("Here, condition must have integer value!\n");exit(0);}} expression ')'
-			| DO statement WHILE '(' simple_expression ')' {if($5!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} ';';
+			: WHILE {nested_loop++; printf("loop value: %d", nested_loop);}'(' simple_expression ')'{if($4!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} statement {nested_loop--;}
+			| FOR {nested_loop++; printf("loop value: %d", nested_loop);}'(' for_initialization simple_expression ';' {if($5!=1){yyerror("Here, condition must have integer value!\n");exit(0);}} expression ')' statement {nested_loop--;}
+			| DO {nested_loop++;printf("loop value: %d", nested_loop);}statement WHILE '(' simple_expression ')' {if($6!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} ';' {nested_loop--;};
 
 for_initialization
 			: variable_dec
@@ -237,8 +238,10 @@ return_statement
 			                     	};
 
 break_statement
-			: BREAK ';' ;
+			: BREAK ';' {if(nested_loop==0) {yyerror("can't use break statement outside loop\n");}} ;
 
+continue_statement
+: CONTINUE ';' {if(nested_loop==0) {yyerror("can't use continue statement outside loop\n");}} ; 
 
 expression
 			: mutable '=' expression              {					strcpy(previous_operator,"=");
@@ -424,6 +427,7 @@ void yyerror(char *s)
 	printf("Line No. : %d %s %s\n",yylineno, s, yytext);
 	flag=1;
 	printf("\nUNSUCCESSFUL: INVALID PARSE\n");
+	exit(1);
 }
 
 void insert_type()
