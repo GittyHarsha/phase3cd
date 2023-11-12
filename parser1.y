@@ -47,7 +47,7 @@
 %token BREAK CONTINUE GOTO
 %token ENDIF
 %token SWITCH CASE DEFAULT
-%expect 1
+%expect 2
 
 %token identifier array_identifier
 %token integer_constant string_constant float_constant character_constant
@@ -84,21 +84,21 @@ declarations
 			;
 
 declaration
-			: variable_declaration
-			| function_declaration
-			| structure_declaration;
+			: variable_dec
+			| function_dec
+			| structure_dec;
 
-structure_declaration
-: STRUCT identifier {current_nested_val++;} '{' structure_content  '}' {remove_scope(current_nested_val);current_nested_val--;} ';'
-| UNION identifier {current_nested_val++;} '{' structure_content  '}' {remove_scope(current_nested_val);current_nested_val--;} ';';
+structure_dec
+			: STRUCT identifier { insert_type(); } '{' structure_content  '}' ';';
 
-structure_content : variable_declaration structure_content | ;
+structure_content : variable_dec structure_content | ;
 
-variable_declaration
+variable_dec
 			: datatype variables ';'
-			| pointer_datatype variables ';' ;
+			| structure_initialize;
 
-
+structure_initialize
+			: STRUCT identifier variables;
 
 variables
 			: identifier_name multiple_variables;
@@ -122,7 +122,6 @@ array_iden
 array_dims
 			: integer_constant {insert_dimensions();} ']' initilization{if($$ < 1) {yyerror("Array must have size greater than 1!\n"); exit(0);} }
 			| ']' string_initilization;
-
 
 initilization
 			: string_initilization
@@ -149,15 +148,7 @@ datatype
 			| SHORT short_grammar
 			| UNSIGNED unsigned_grammar
 			| SIGNED signed_grammar
-			| VOID 
-			| STRUCT identifier
-			| UNION identifier;
-
-pointer_datatype
-: datatype '*'
-| pointer_datatype '*';
-
-
+			| VOID ;
 
 unsigned_grammar
 			: INT | LONG long_grammar | SHORT short_grammar | ;
@@ -171,7 +162,7 @@ long_grammar
 short_grammar
 			: INT | ;
 
-function_declaration
+function_dec
 			: function_datatype function_parameters;
 
 function_datatype
@@ -201,7 +192,7 @@ statement
 			: expression_statment | multiple_statement
 			| conditional_statements | iterative_statements
 			| return_statement | break_statement
-			| variable_declaration;
+			| variable_dec;
 
 multiple_statement
 			:{current_nested_val++;} '{' statments '}' {remove_scope(current_nested_val);current_nested_val--;} ;
@@ -227,7 +218,7 @@ iterative_statements
 			| DO statement WHILE '(' simple_expression ')' {if($5!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} ';';
 
 for_initialization
-			: variable_declaration
+			: variable_dec
 			| expression ';'
 			| ';' ;
 
@@ -296,11 +287,11 @@ expression
 
 
 simple_expression
-			: simple_expression OR_OR and_expression {if($1 == 1 && $3==1) $$=1; else {$$=-1 ;yyerror("Type Mismatch\n"); exit(0);}}
+			: simple_expression OR_OR and_expression {if($1 == 1 && $3==1) $$=1; else $$=-1;}
 			| and_expression {if($1 == 1) $$=1; else $$=-1;};
 
 and_expression
-			: and_expression AND_AND unary_relation_expression {if($1 == 1 && $3==1) $$=1; else {$$=-1;yyerror("Type Mismatch\n"); exit(0);}}
+			: and_expression AND_AND unary_relation_expression {if($1 == 1 && $3==1) $$=1; else $$=-1;}
 			  |unary_relation_expression {if($1 == 1) $$=1; else $$=-1;} ;
 
 unary_relation_expression
@@ -308,7 +299,7 @@ unary_relation_expression
 			| regular_expression {if($1 == 1) $$=1; else $$=-1;} ;
 
 regular_expression
-			: regular_expression relational_operators sum_expression {if($1 == 1 && $3==1) $$=1; else {$$=-1;yyerror("Type Mismatch\n"); exit(0);}}
+			: regular_expression relational_operators sum_expression {if($1 == 1 && $3==1) $$=1; else $$=-1;}
 			  | sum_expression {if($1 == 1) $$=1; else $$=-1;} ;
 
 relational_operators
@@ -320,7 +311,7 @@ relational_operators
 			| NOT_EQUAL{strcpy(previous_operator,"!=");} ;
 
 sum_expression
-			: sum_expression sum_operators term  {if($1 == 1 && $3==1) $$=1; else {$$=-1;yyerror("Type Mismatch\n"); exit(0);}}
+			: sum_expression sum_operators term  {if($1 == 1 && $3==1) $$=1; else $$=-1;}
 			| term {if($1 == 1) $$=1; else $$=-1;};
 
 sum_operators
@@ -328,15 +319,15 @@ sum_operators
 			| '-' ;
 
 term
-			: term MULOP factor {if($1 == 1 && $3==1) $$=1; else {$$=-1; yyerror("Type Mismatch\n"); exit(0);}}
+			: term MULOP factor {if($1 == 1 && $3==1) $$=1; else $$=-1;}
 			| factor {if($1 == 1) $$=1; else $$=-1;} ;
 
 MULOP
 			: '*' | '/' | '%' ;
 
 factor
-			: immutable {if($1 == 1) $$=1; else {$$=-1;yyerror("Type Mismatch\n"); exit(0);}}
-			| mutable {if($1 == 1) $$=1; else {$$=-1;yyerror("Type Mismatch\n"); exit(0);}} ;
+			: immutable {if($1 == 1) $$=1; else $$=-1;}
+			| mutable {if($1 == 1) $$=1; else $$=-1;} ;
 
 mutable
 			: identifier {
@@ -392,7 +383,7 @@ A
 constant
 			: integer_constant 	{  insert_type(); $$=1; }
 			| string_constant	{  insert_type(); $$=-1;}
-			| float_constant	{  insert_type(); $$=1;}
+			| float_constant	{  insert_type(); }
 			| character_constant{  insert_type();$$=1; };
 
 

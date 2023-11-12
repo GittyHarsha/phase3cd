@@ -9,6 +9,6 @@ int multiply(int a)
 int main()
 {
 	int a = 5;
-	int b = multiply(a);
+	int b=multiply(a);
 	printf("%d ", b);
 }
