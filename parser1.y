@@ -23,6 +23,17 @@
 	void insert_SymbolTable_function(char*);
 	char gettype(char*,int);
 
+
+		
+void pop(void);
+void push(int);
+void display(void);
+void isempty(void);
+void isfull(void);
+
+extern int t;
+extern int call_params_stack[1000];
+
 	extern int flag;
 	int insert_flag = 0;
 
@@ -36,7 +47,10 @@
 	char currfunccall[100];
 	extern int params_count;
 	int call_params_count;
-
+	int cur_dim_count=0;
+	int cur_arr_dim[20]={0};
+	int check_dim_count=0;
+	int check_arr_dim[20]={0}; 
 	int nested_loop=0;
 
 	int switch_default_cnt=0;
@@ -52,7 +66,7 @@
 %token BREAK CONTINUE GOTO
 %token ENDIF
 %token SWITCH CASE DEFAULT
-%expect 2
+%expect 3
 
 %token identifier array_identifier
 %token integer_constant string_constant float_constant character_constant
@@ -98,9 +112,11 @@ structure_dec
 
 structure_content : variable_dec structure_content | ;
 
+
 variable_dec
-			: datatype variables ';'
-			| structure_initialize;
+: datatype variables ';'
+| pointer_datatype variables ';' 
+| structure_initialize;
 
 structure_initialize
 			: STRUCT identifier variables;
@@ -121,12 +137,17 @@ identifier_name
 extended_identifier : array_iden | '='{strcpy(previous_operator,"=");} simple_expression ;
 
 array_iden
-			: '[' array_dims
-			| ;
+: '[' array_dims {cur_dim_count=0;}
+| ;
 
 array_dims
-			: integer_constant {insert_dimensions();} ']' initilization{if($$ < 1) {yyerror("Array must have size greater than 1!\n"); exit(0);} }
-			| ']' string_initilization;
+: dims initilization 
+| ']' string_initilization;
+
+dims
+: integer_constant ']' {cur_arr_dim[cur_dim_count]=$1;/*printf("%d %d %d %d",cur_dim_count,cur_arr_dim[0],cur_arr_dim[1],cur_arr_dim[2]);*/}
+| integer_constant ']' {cur_arr_dim[cur_dim_count]=$1;cur_dim_count++;} '[' dims 
+;
 
 initilization
 			: string_initilization
@@ -136,15 +157,21 @@ initilization
 string_initilization
 			: '='{strcpy(previous_operator,"=");} string_constant { insert_value(); };
 
-array_initialization
-			: '='{strcpy(previous_operator,"=");} '{' array_values '}';
 
-array_values
-			: integer_constant multiple_array_values;
+array_initialization
+: '=' {strcpy(previous_operator,"=");} '{' {check_dim_count=0; check_arr_dim[check_dim_count]++;} array_values '}' { if (cur_arr_dim[check_dim_count]!= check_arr_dim[check_dim_count]){printf("Error in dimension of array\n");exit(0);}for(int _ = 0; _ <= cur_dim_count; _++){cur_arr_dim[_]=0;}cur_dim_count=0; for(int _ = 0; _ <= check_dim_count; _++){check_arr_dim[_]=0;}check_arr_dim[check_dim_count]=0;check_dim_count=0;};
+
 
 multiple_array_values
-			: ',' array_values
-			| ;
+			: ',' {check_arr_dim[check_dim_count]++;} array_values;
+
+array_values: '{' {check_dim_count++; check_arr_dim[check_dim_count]++;}  array_values { if (cur_arr_dim[check_dim_count]!= check_arr_dim[check_dim_count]){printf("Error in dimension of array\n");exit(0);}check_arr_dim[check_dim_count]=0;check_dim_count--;}'}'
+ | array_values multiple_array_values;
+ | constant {};
+
+pointer_datatype
+: datatype '*'
+| pointer_datatype '*';
 
 
 datatype
@@ -177,7 +204,8 @@ function_parameters
 			: parameters ')' statement;
 
 parameters
-			: datatype { check_params(current_type); } all_parameter_identifiers {insert_SymbolTable_paramscount(current_function, params_count);} | ;
+			: datatype { check_params(current_type); } all_parameter_identifiers {insert_SymbolTable_paramscount(current_function, params_count);} 
+			| ;
 
 all_parameter_identifiers
 			: parameter_identifier multiple_parameters;
@@ -380,7 +408,10 @@ immutable
 			| constant {if($1==1) $$=1; else $$=-1;};
 
 call
-			: identifier '('{ strcpy(previous_operator,"(");
+			: identifier '('{ 
+						push(0);
+				
+						strcpy(previous_operator,"(");
 			             if(!check_declaration(current_identifier, "Function"))
 			             { yyerror("Function not declared"); exit(0);}
 			             insert_SymbolTable_function(current_identifier);
@@ -388,23 +419,26 @@ call
 			             } arguments ')'
 						 { if(strcmp(currfunccall,"printf"))
 							{
-								if(getSTparamscount(currfunccall)!=call_params_count)
+								if(t==-1 || getSTparamscount(currfunccall)!=call_params_stack[t])
 								{
 									yyerror("Number of parameters not same as number of arguments during function call!");
 									//printf("Number of arguments in function call %s doesn't match number of parameters\n", currfunccall);
 									exit(8);
 								}
 							}
+
+
+							pop();
 						 };
 
 arguments
 			: arguments_list | ;
 
 arguments_list
-			: expression { call_params_count++; } A ;
+			: expression { call_params_stack[t]++; } A ;
 
 A
-			: ',' expression { call_params_count++; } A
+			: ',' expression { call_params_stack[t]++;} A
 			| ;
 
 constant

@@ -456,6 +456,49 @@
 	char previous_operator[20];
 	int flag;
 
+
+int MAX=1000;
+int t=-1;
+int call_params_stack[1000];
+void pop()
+{
+    int temp;
+    if(t==-1)
+    {
+        printf("\nSTACK OVERFLOW!!\n");
+    }
+    else
+    { 
+        temp=call_params_stack[t--];
+        printf("the element popped is %d\n",temp);
+    }
+}
+void push(int ele)
+{
+    if(t==MAX)
+    {
+        printf("\nstack OVERFLOW\n");
+    }
+    else
+    {
+        t++;
+        call_params_stack[t]=ele;
+    }
+}
+void isempty()
+{
+    if(t==-1)
+    printf("EMPTY\n");
+    else
+    printf("NOT EMPTY\n");
+}
+void isfull()
+{
+    if(t==MAX)
+    printf("FULL\n");
+    else
+    printf("NOT FULL\n");
+}
 %}
 
 num              	[0-9]

@@ -1,14 +1,12 @@
 //ERROR FREE - This test case includes a function
 #include<stdio.h>
 
-int f()
-{
-	return 1;
+int f(char[] a) {
+	return a[0];
 }
-
-
 int main()
 {
-	int a=5;
-	a=4;
+	char a[100];
+	int c=f(a);
+
 }
