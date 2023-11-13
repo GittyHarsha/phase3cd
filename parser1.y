@@ -154,14 +154,19 @@ string_initilization
 			: '='{strcpy(previous_operator,"=");} string_constant { insert_value(); };
 
 array_initialization
-			: '='{strcpy(previous_operator,"=");} '{' array_values '}';
+: '=' {strcpy(previous_operator,"=");} '{' {check_dim_count=0; check_arr_dim[check_dim_count]++;} array_values '}' {printf(" dim at %d , %d\n", check_dim_count, check_arr_dim[check_dim_count]);for(int _ = 0; _ <= cur_dim_count; _++){cur_arr_dim[_]=0;}cur_dim_count=0; for(int _ = 0; _ <= check_dim_count; _++){check_arr_dim[_]=0;}check_arr_dim[check_dim_count]=0;check_dim_count=0;};
 
-array_values
-			: integer_constant multiple_array_values;
 
 multiple_array_values
-			: ',' array_values
-			| ;
+			: ',' {check_arr_dim[check_dim_count]++;} array_values;
+
+array_values: '{' {check_dim_count++; check_arr_dim[check_dim_count]++;}  array_values {/*checkhere*/printf(" dim at %d , %d\n", check_dim_count, check_arr_dim[check_dim_count]);check_arr_dim[check_dim_count]=0;check_dim_count--;}'}'
+ | array_values multiple_array_values;
+ | constant;
+
+pointer_datatype
+: datatype '*'
+| pointer_datatype '*';
 
 
 datatype
