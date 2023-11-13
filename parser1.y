@@ -430,14 +430,21 @@ A
 			| ;
 
 constant
-			: integer_constant 	{  insert_type(); $$=1; }
-			| string_constant	{  insert_type(); $$=-1;}
-			| float_constant	{  insert_type(); }
-			| character_constant{  insert_type();$$=1; };
+			: integer_constant 	{  insert_type(); add_primitive_node("int", 1);  }
+			| string_constant	{  insert_type();  }
+			| float_constant	{  insert_type(); add_primitive_node("float", 1);  }
+			| character_constant{  insert_type();add_primitive_node("char", 1); };
 
 
 %%
-
+/*struct node_type
+{
+	char name[100];
+	int type;
+	int no_of_dim;
+	int arr_dims[20];
+	int pointer_count;
+};*/
 extern FILE *yyin;
 extern int yylineno;
 extern char *yytext;
