@@ -22,6 +22,8 @@
 	int check_array(char*);
 	void insert_SymbolTable_function(char*);
 	char gettype(char*,int);
+	int check_int(struct node_type a);
+	int type_check(struct node_type L, struct node_type R);
 
 	extern int flag;
 	int insert_flag = 0;
@@ -39,8 +41,22 @@
 
 %}
 
+%code requires {
+struct node_type
+{
+	char name[100];
+	int type;
+	int no_of_dim;
+	int arr_dims[20];
+	int pointer_count;
+};
+}
+%union{
+	struct node_type node_type;
+	char operator[100];
+}
 %nonassoc IF
-%token INT CHAR FLOAT DOUBLE LONG SHORT SIGNED UNSIGNED STRUCT UNION
+%token<node_type> INT CHAR FLOAT DOUBLE LONG SHORT SIGNED UNSIGNED STRUCT UNION
 %token RETURN MAIN
 %token VOID
 %token WHILE FOR DO
@@ -49,27 +65,28 @@
 %token SWITCH CASE DEFAULT
 %expect 2
 
-%token identifier array_identifier
-%token integer_constant string_constant float_constant character_constant
+%token<node_type> identifier array_identifier
+%token<node_type> integer_constant string_constant float_constant character_constant
 
 %nonassoc ELSE
 
-%right MOD_EQUAL
-%right MULTIPLY_EQUAL DIVIDE_EQUAL
-%right ADD_EQUAL SUBTRACT_EQUAL
-%right '='
+%right<operator> MOD_EQUAL
+%right<operator> MULTIPLY_EQUAL DIVIDE_EQUAL
+%right<operator> ADD_EQUAL SUBTRACT_EQUAL
+%right<operator> '='
 
-%left OR_OR
-%left AND_AND
-%left '^'
-%left EQUAL NOT_EQUAL
-%left LESS_EQUAL LESS GREAT_EQUAL GREAT
-%left '+' '-'
-%left '*' '/' '%'
+%left<operator> OR_OR
+%left<operator> AND_AND
+%left<operator> '^'
+%left<operator> EQUAL NOT_EQUAL
+%left<operator> LESS_EQUAL LESS GREAT_EQUAL GREAT
+%left<operator> '+' '-'
+%left<operator> '*' '/' '%'
 
 %right SIZEOF
-%right NOT
-%left INCREMENT DECREMENT
+%right<operator> NOT
+%left<operator> INCREMENT DECREMENT
+
 
 
 %start begin_parse
@@ -447,6 +464,35 @@ void insert_parameters()
 {
     insert_SymbolTable_funcparam(current_function, current_identifier);
 }
+
+int check_int(struct node_type a)
+{
+	return ((a.type == 1) && (strcmp(a.name, "int") == 0)); 
+}
+
+int type_check(struct node_type L, struct node_type R)
+{
+	if (L.type == R.type)
+	{
+		if (L.type == 1) return 1;
+		else if (L.type == 2)
+		{
+			if ((strcmp(L.name,R.name) == 0) && (L.pointer_count == R.pointer_count)) return 1;
+		}
+		else if (L.type == 3)
+		{
+			if (L.no_of_dim == R.no_of_dim)
+			{
+				
+			}
+		}
+	}
+	else
+	{
+
+	}
+}
+
 
 int yywrap()
 {

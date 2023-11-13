@@ -8,7 +8,7 @@ int multiply(int a)
 
 int main()
 {
-	int a = 5;
-	int b=multiply(a);
-	printf("%d ", b);
+	int a[2] = {1,2};
+	int b[2] = {4,2};
+	a = b;
 }
