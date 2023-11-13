@@ -22,6 +22,8 @@
 	int check_array(char*);
 	void insert_SymbolTable_function(char*);
 	char gettype(char*,int);
+	int check_int(struct node_type a);
+	int type_check(struct node_type L, struct node_type R);
 
 
 		
@@ -58,8 +60,22 @@ extern int call_params_stack[1000];
 	
 %}
 
+%code requires {
+struct node_type
+{
+	char name[100];
+	int type;
+	int no_of_dim;
+	int arr_dims[20];
+	int pointer_count;
+};
+}
+%union{
+	struct node_type node_type;
+	char operator[100];
+}
 %nonassoc IF
-%token INT CHAR FLOAT DOUBLE LONG SHORT SIGNED UNSIGNED STRUCT UNION
+%token<node_type> INT CHAR FLOAT DOUBLE LONG SHORT SIGNED UNSIGNED STRUCT UNION
 %token RETURN MAIN
 %token VOID
 %token WHILE FOR DO
@@ -68,27 +84,28 @@ extern int call_params_stack[1000];
 %token SWITCH CASE DEFAULT
 %expect 3
 
-%token identifier array_identifier
-%token integer_constant string_constant float_constant character_constant
+%token<node_type> identifier array_identifier
+%token<node_type> integer_constant string_constant float_constant character_constant
 
 %nonassoc ELSE
 
-%right MOD_EQUAL
-%right MULTIPLY_EQUAL DIVIDE_EQUAL
-%right ADD_EQUAL SUBTRACT_EQUAL
-%right '='
+%right<operator> MOD_EQUAL
+%right<operator> MULTIPLY_EQUAL DIVIDE_EQUAL
+%right<operator> ADD_EQUAL SUBTRACT_EQUAL
+%right<operator> '='
 
-%left OR_OR
-%left AND_AND
-%left '^'
-%left EQUAL NOT_EQUAL
-%left LESS_EQUAL LESS GREAT_EQUAL GREAT
-%left '+' '-'
-%left '*' '/' '%'
+%left<operator> OR_OR
+%left<operator> AND_AND
+%left<operator> '^'
+%left<operator> EQUAL NOT_EQUAL
+%left<operator> LESS_EQUAL LESS GREAT_EQUAL GREAT
+%left<operator> '+' '-'
+%left<operator> '*' '/' '%'
 
 %right SIZEOF
-%right NOT
-%left INCREMENT DECREMENT
+%right<operator> NOT
+%left<operator> INCREMENT DECREMENT
+
 
 
 %start begin_parse
@@ -159,15 +176,15 @@ string_initilization
 
 
 array_initialization
-: '=' {strcpy(previous_operator,"=");} '{' {check_dim_count=0; check_arr_dim[check_dim_count]++;} array_values '}' { if (cur_arr_dim[check_dim_count]!= check_arr_dim[check_dim_count]){printf("Error in dimension of array\n");exit(0);}for(int _ = 0; _ <= cur_dim_count; _++){cur_arr_dim[_]=0;}cur_dim_count=0; for(int _ = 0; _ <= check_dim_count; _++){check_arr_dim[_]=0;}check_arr_dim[check_dim_count]=0;check_dim_count=0;};
+: '=' {strcpy(previous_operator,"=");} '{' {check_dim_count=0; check_arr_dim[check_dim_count]++;} array_values '}' {printf(" dim at %d , %d\n", check_dim_count, check_arr_dim[check_dim_count]);for(int _ = 0; _ <= cur_dim_count; _++){cur_arr_dim[_]=0;}cur_dim_count=0; for(int _ = 0; _ <= check_dim_count; _++){check_arr_dim[_]=0;}check_arr_dim[check_dim_count]=0;check_dim_count=0;};
 
 
 multiple_array_values
 			: ',' {check_arr_dim[check_dim_count]++;} array_values;
 
-array_values: '{' {check_dim_count++; check_arr_dim[check_dim_count]++;}  array_values { if (cur_arr_dim[check_dim_count]!= check_arr_dim[check_dim_count]){printf("Error in dimension of array\n");exit(0);}check_arr_dim[check_dim_count]=0;check_dim_count--;}'}'
+array_values: '{' {check_dim_count++; check_arr_dim[check_dim_count]++;}  array_values {/*checkhere*/printf(" dim at %d , %d\n", check_dim_count, check_arr_dim[check_dim_count]);check_arr_dim[check_dim_count]=0;check_dim_count--;}'}'
  | array_values multiple_array_values;
- | constant {};
+ | constant;
 
 pointer_datatype
 : datatype '*'
@@ -442,13 +459,41 @@ A
 			| ;
 
 constant
-			: integer_constant 	{  insert_type(); $$=1; }
-			| string_constant	{  insert_type(); $$=-1;}
-			| float_constant	{  insert_type(); }
-			| character_constant{  insert_type();$$=1; };
+			: integer_constant 	{  insert_type(); add_primitive_node("int", 1);  }
+			| string_constant	{  insert_type();  }
+			| float_constant	{  insert_type(); add_primitive_node("float", 1);  }
+			| character_constant{  insert_type();add_primitive_node("char", 1); };
 
 
 %%
+/*struct node_type
+{
+	char name[100];
+	int type;
+	int no_of_dim;
+	int arr_dims[20];
+	int pointer_count;
+};*/
+
+struct node_type add_primitive_node(char[] name, int type) {
+	struct node_type node;
+	strcpy(node.name, name);
+	node.type=type;
+	return node;
+}
+
+struct node_type add_array_node(char[] name, int type, int no_of_dim, int arr_dims[]) {
+	struct node_type node;
+	strcpy(node.name, name);
+	node.type=type;
+	node.no_of_dim=no_of_dim;
+	for(int i=0;i<no_of_dim;i++) {
+		node.arr_dims[i]=arr_dims[i];
+	}
+	return node;
+}
+
+
 
 extern FILE *yyin;
 extern int yylineno;
@@ -509,6 +554,35 @@ void insert_parameters()
 {
     insert_SymbolTable_funcparam(current_function, current_identifier);
 }
+
+int check_int(struct node_type a)
+{
+	return ((a.type == 1) && (strcmp(a.name, "int") == 0)); 
+}
+
+int type_check(struct node_type L, struct node_type R)
+{
+	if (L.type == R.type)
+	{
+		if (L.type == 1) return 1;
+		else if (L.type == 2)
+		{
+			if ((strcmp(L.name,R.name) == 0) && (L.pointer_count == R.pointer_count)) return 1;
+		}
+		else if (L.type == 3)
+		{
+			if (L.no_of_dim == R.no_of_dim)
+			{
+				
+			}
+		}
+	}
+	else
+	{
+
+	}
+}
+
 
 int yywrap()
 {
