@@ -438,6 +438,26 @@ constant
 
 %%
 
+struct node_type add_primitive_node(char[] name, int type) {
+	struct node_type node;
+	strcpy(node.name, name);
+	node.type=type;
+	return node;
+}
+
+struct node_type add_array_node(char[] name, int type, int no_of_dim, int arr_dims[]) {
+	struct node_type node;
+	strcpy(node.name, name);
+	node.type=type;
+	node.no_of_dim=no_of_dim;
+	for(int i=0;i<no_of_dim;i++) {
+		node.arr_dims[i]=arr_dims[i];
+	}
+	return node;
+}
+
+
+
 extern FILE *yyin;
 extern int yylineno;
 extern char *yytext;
