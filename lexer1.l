@@ -16,7 +16,8 @@
 		char class[100];
         char value[100];
         char parameters[100];
-        int line_number;
+        int line_number[100];
+		int line_cnt;
 		int exist;
 		int nested_val;
 		int params_count;
@@ -89,9 +90,17 @@
 	}
 	
 	
+	
 	void insert_ConstantTable(char* name, char* type){
 		int index = 0;
 		 if(search_ConstantTable(name)){
+			unsigned long temp_val = hash(name);
+			int val = temp_val%1000;
+			if(ST[val].exist==1) {
+				ST[val].line_cnt++;
+				int line_cnt=ST[val].line_cnt;
+				ST[val].line_number[line_cnt]=yylineno;
+			}
 			return;
 		}
 		else{
@@ -121,6 +130,13 @@
 		//printf("BBBB");
 		 if(search_SymbolTable(name)){
 			//printf("AAAAAA");
+			unsigned long temp_val = hash(name);
+			int val = temp_val%1000;
+			if(ST[val].exist==1) {
+				ST[val].line_cnt++;
+				int line_cnt=ST[val].line_cnt;
+				ST[val].line_number[line_cnt]=yylineno;
+			}
 			return;
 		}
 		else{
@@ -131,7 +147,7 @@
 				strcpy(ST[val].class, class);
 			    ST[val].nested_val = 100;
 				//ST[val].params_count = -1;
-                ST[val].line_number = yylineno;
+                ST[val].line_number[0] = yylineno;
 				ST[val].exist = 1;
 				return;
 			}
@@ -201,7 +217,7 @@
 		{
 			if(strcmp(ST[i].symbol_name,str1)==0)
 			{
-				ST[i].line_number = line;
+				ST[i].line_number[0] = line;
 			}
 		}
 	}
@@ -229,7 +245,7 @@
 			ST[pos].nested_val = nest;
 			//printf("afafa %s\n", ST[pos].symbol_name);
 			//ST[pos].params_count = -1;
-			ST[pos].line_number = yylineno;
+			ST[pos].line_number[0] = yylineno;
 			ST[pos].exist = 1; 
 		}
 		else
@@ -424,9 +440,13 @@
 	void printSymbolTable(){
         printf("%10s | %18s | %10s | %10s | %10s | %10s | %10s | %10s | %10s\n","SYMBOL", "CLASS", "TYPE","VALUE","DIMENSIONS","PARAMETERS","PARAMETER COUNT", "NESTING", "LINE NO");
 		for(int i = 0; i < 1000; ++i){
-			if(ST[i].exist == 0)
+			if(ST[i].exist == 0 )
 				continue;
-			printf("%10s | %18s | %10s | %10s | %10s | %10s | %15d | %10d | %d\n", ST[i].symbol_name, ST[i].class, ST[i].symbol_type, ST[i].value,ST[i].array_dimensions,ST[i].parameters, ST[i].params_count, ST[i].nested_val,ST[i].line_number);
+			printf("%10s | %18s | %10s | %10s | %10s | %10s | %15d | %10d | ", ST[i].symbol_name, ST[i].class, ST[i].symbol_type, ST[i].value,ST[i].array_dimensions,ST[i].parameters, ST[i].params_count, ST[i].nested_val,ST[i]);
+			for(int j=0;j<=ST[i].line_cnt;j++) {
+				printf("%d ", ST[i].line_number[j]) ;
+			}
+			printf("\n");
 		}
 	}
 	char current_identifier[20];
@@ -485,6 +505,7 @@ IN "include"
 "}"                                          {return *yytext;}
 ","                                          {return *yytext;}
 ";"                                          {return *yytext;}
+":"											 {return *yytext;}
 
 
 

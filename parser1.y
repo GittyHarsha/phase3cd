@@ -39,6 +39,11 @@
 	extern int params_count;
 	int call_params_count;
 
+	int nested_loop=0;
+
+	int switch_default_cnt=0;
+
+	
 %}
 
 %code requires {
@@ -208,7 +213,7 @@ extended_parameter
 statement
 			: expression_statment | multiple_statement
 			| conditional_statements | iterative_statements
-			| return_statement | break_statement
+			| return_statement | break_statement | continue_statement
 			| variable_dec;
 
 multiple_statement
@@ -223,22 +228,40 @@ expression_statment
 			| ';' ;
 
 conditional_statements
-			: IF '(' simple_expression ')' {if($3!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} statement extended_conditional_statements;
+			: IF '(' simple_expression ')' {if($3!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} statement extended_conditional_statements
+			| switch_statement;
+
+switch_statement
+			: SWITCH  {nested_loop++; switch_default_cnt=0;}'(' expression ')' '{' case_list '}' {nested_loop--; switch_default_cnt=0;};
+
+case_list
+			: CASE integer_constant ':' statement  case_list
+			| DEFAULT { if(switch_default_cnt>0) 
+						{yyerror("multiple default case in swtich statement\n");}  }':' statement case_list
+			| ;
+
 
 extended_conditional_statements
 			: ELSE statement
 			| ;
 
 iterative_statements
-			: WHILE '(' simple_expression ')'{if($3!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} statement
-			| FOR '(' for_initialization simple_expression ';' {if($4!=1){yyerror("Here, condition must have integer value!\n");exit(0);}} expression ')'
-			| DO statement WHILE '(' simple_expression ')' {if($5!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} ';';
+			: WHILE {nested_loop++; printf("loop value: %d", nested_loop);}'(' simple_expression ')'{if($4!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} statement {nested_loop--;}
+			| FOR {nested_loop++; printf("loop value: %d", nested_loop);}'(' for_initialization for_simple_expression ';' {if($5!=1){yyerror("Here, condition must have integer value!\n");exit(0);}} for_expression ')' statement {nested_loop--;}
+			| DO {nested_loop++;printf("loop value: %d", nested_loop);}statement WHILE '(' simple_expression ')' {if($6!=1){yyerror("ERROR: Here, condition must have integer value!\n");exit(0);}} ';' {nested_loop--;};
 
 for_initialization
 			: variable_dec
 			| expression ';'
 			| ';' ;
 
+for_simple_expression
+			: simple_expression
+			| ;
+
+for_expression
+			: expression
+			| ;
 return_statement
 			: RETURN ';' {if(strcmp(currfunctype,"void")) {yyerror("ERROR: Cannot have void return for non-void function!\n"); exit(0);}}
 			| RETURN expression ';' { 	if(!strcmp(currfunctype, "void"))
@@ -254,8 +277,10 @@ return_statement
 			                     	};
 
 break_statement
-			: BREAK ';' ;
+			: BREAK ';' {if(nested_loop==0) {yyerror("can't use break statement outside loop\n");}} ;
 
+continue_statement
+: CONTINUE ';' {if(nested_loop==0) {yyerror("can't use continue statement outside loop\n");}} ; 
 
 expression
 			: mutable '=' expression              {					strcpy(previous_operator,"=");
@@ -305,7 +330,8 @@ expression
 
 simple_expression
 			: simple_expression OR_OR and_expression {if($1 == 1 && $3==1) $$=1; else $$=-1;}
-			| and_expression {if($1 == 1) $$=1; else $$=-1;};
+			| and_expression {if($1 == 1) $$=1; else $$=-1;}
+			 ;
 
 and_expression
 			: and_expression AND_AND unary_relation_expression {if($1 == 1 && $3==1) $$=1; else $$=-1;}
@@ -317,7 +343,8 @@ unary_relation_expression
 
 regular_expression
 			: regular_expression relational_operators sum_expression {if($1 == 1 && $3==1) $$=1; else $$=-1;}
-			  | sum_expression {if($1 == 1) $$=1; else $$=-1;} ;
+			  | sum_expression {if($1 == 1) $$=1; else $$=-1;} 
+			  ;
 
 relational_operators
 			: GREAT_EQUAL{strcpy(previous_operator,">=");}
@@ -441,6 +468,7 @@ void yyerror(char *s)
 	printf("Line No. : %d %s %s\n",yylineno, s, yytext);
 	flag=1;
 	printf("\nUNSUCCESSFUL: INVALID PARSE\n");
+	exit(1);
 }
 
 void insert_type()
