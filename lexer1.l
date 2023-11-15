@@ -21,6 +21,7 @@
 		int exist;
 		int nested_val;
 		int params_count;
+		int pointer_count;
 	}ST[1000];
 
 	int current_nested_val = 0;
@@ -37,7 +38,18 @@
 
 		return hash;
 	}
-
+  char* find_pointer_name(char* name1)
+	{
+     char *name;int y=0;name=malloc(sizeof(char));
+	 for(int i=0;name1[i]!='\0';i++)
+	 {
+	   if(name1[i]!='*' && name1[i]!=' ')
+	   {
+        name[y]=name1[i];y++;
+	   }
+	 }
+	 name[y]='\0';return name;
+	}
 	int search_ConstantTable(char* str){
 		unsigned long temp_val = hash(str);
 		int val = temp_val%1000;
@@ -89,7 +101,32 @@
 		}
 	}
 	
-	
+	int search_pointer_SymbolTable(char* str1){
+		char str[100];
+		strcpy(str,find_pointer_name(str1));
+		unsigned long temp_val = hash(str);
+		int val = temp_val%1000;
+		
+		if(ST[val].exist == 0){
+			return 0;
+		}
+		
+		else if(strcmp(ST[val].symbol_name, str) == 0)
+		{
+			return val;
+		}
+		else
+		{
+			for(int i = val+1 ; i!=val ; i = (i+1)%1000)
+			{
+				if(strcmp(ST[i].symbol_name,str)==0)
+				{
+					return i;
+				}
+			}
+			return 0;
+		}
+	}
 	
 	void insert_ConstantTable(char* name, char* type){
 		int index = 0;
@@ -125,7 +162,16 @@
 		}
 	}
 	
-	void insert_SymbolTable(char* name, char* class){
+	void insert_SymbolTable(char* name1, char* class){
+		char name[100];
+		if(strcmp(class,"Pointer")==0)
+		{
+         strcpy(name,find_pointer_name(name1));
+		}
+		else
+		{
+		 strcpy(name,name1);
+		}
 		int index = 0;
 		//printf("BBBB");
 		 if(search_SymbolTable(name)){
@@ -149,6 +195,15 @@
 				//ST[val].params_count = -1;
                 ST[val].line_number[0] = yylineno;
 				ST[val].exist = 1;
+				ST[val].pointer_count=0;
+				if(strcmp(class,"Pointer")==0)
+				{
+					for(int i=0;name[i]!='\0';i++)
+					{
+						if(name[i]=='*')
+						 ST[val].pointer_count++;
+					}
+				}
 				return;
 			}
 			
@@ -158,9 +213,19 @@
 					break;
 				}
 			}
+			
 			strcpy(ST[index].symbol_name, name);
 			strcpy(ST[val].class, class);
 			ST[index].nested_val = 100;
+			ST[index].pointer_count=0;
+				if(strcmp(class,"Pointer")==0)
+				{
+					for(int i=0;name[i]!='\0';i++)
+					{
+						if(name[i]=='*')
+						 ST[index].pointer_count++;
+					}
+				}
 			//ST[index].params_count = -1;
 			ST[index].exist = 1;			
 		}
@@ -311,7 +376,20 @@
 		}
 
 	}
+    void insert_pointer_SymbolTable_function(char *s1)
+	{
+		char s[100];
+		strcpy(s,find_pointer_name(s1));
+		for(int i = 0 ; i < 1001 ; i++)
+		{
+			if(strcmp(ST[i].symbol_name,s)==0 )
+			{
+				strcpy(ST[i].class,"Function");
+				return;
+			}
+		}
 
+	}
 	int check_function(char *s)
 	{
 		for(int i = 0 ; i < 1000 ; i++)
@@ -349,13 +427,30 @@
 				if(ST[i].nested_val == current_nested_val)
 				{
 			        return 1;
+				
 				}
 			}
 		}
 		
 		return 0;
 	}
-
+    int pointer_duplicate(char *s1)
+	{
+        char s[100];
+		strcpy(s,find_pointer_name(s1));
+		for(int i = 0 ; i < 1000 ; i++)
+		{
+			if(strcmp(ST[i].symbol_name,s)==0)
+			{				
+				if(ST[i].nested_val == current_nested_val)
+				{
+			        return 1;
+				}
+			}
+		}
+		
+		return 0;
+	}
 	int check_duplicate(char* str)
 	{
 		for(int i=0; i<1000; i++)
@@ -368,7 +463,20 @@
 			}
 		}
 	}
-
+    int check_pointer_duplicate(char* str1)
+	{
+		char str[100];
+		strcpy(str,find_pointer_name(str1));
+		for(int i=0; i<1000; i++)
+		{
+			if(strcmp(ST[i].symbol_name, str) == 0 && strcmp(ST[i].class, "Function") == 0)
+			{
+				printf("ERROR: Cannot Redeclare same function!\n");
+				printf("\nUNSUCCESSFUL: INVALID PARSE\n");
+				exit(0);
+			}
+		}
+	}
 	int check_declaration(char* str, char *check_type)
 	{
 		for(int i=0; i<1000; i++)
@@ -380,7 +488,20 @@
 		}
 		return 0;
 	}
-
+    
+    int check_pointer_declaration(char* str1, char *check_type)
+	{
+		char str[100];
+		strcpy(str,find_pointer_name(str1));
+		for(int i=0; i<1000; i++)
+		{
+			if(strcmp(ST[i].symbol_name, str) == 0 && strcmp(ST[i].class, "Function") == 0 || strcmp(ST[i].symbol_name,"printf")==0 )
+			{
+				return 1;
+			}
+		}
+		return 0;
+	}
 	int check_params(char* type_specifier)
 	{
 		if(!strcmp(type_specifier, "void"))
@@ -402,7 +523,18 @@
 			}
 		}
 	}
-
+    void insert_pointer_SymbolTable_paramscount(char *s1, int count)
+	{
+		char s[100];
+		strcpy(s,find_pointer_name(s1));
+		for(int i = 0 ; i < 1000 ; i++)
+		{
+			if(strcmp(ST[i].symbol_name,s)==0 )
+			{
+				ST[i].params_count = count;
+			}
+		}
+	}
 	int getSTparamscount(char *s)
 	{
 		for(int i = 0 ; i < 1000 ; i++)
@@ -427,6 +559,19 @@
 		
 	}
 
+    char pointer_gettype(char *s1, int flag)
+	{
+		    char s[100];
+		    strcpy(s,find_pointer_name(s1));
+			for(int i = 0 ; i < 1001 ; i++ )
+			{
+				if(strcmp(ST[i].symbol_name,s)==0)
+				{
+					return ST[i].symbol_type[0];
+				}
+			}
+		
+	}
 	void printConstantTable(){
 		printf("%20s | %20s\n", "CONSTANT","TYPE");
 		for(int i = 0; i < 1000; ++i){
@@ -460,9 +605,11 @@
 
 num              	[0-9]
 alpha              	[a-zA-Z]
+st                  "*"
 alphanum            {alpha}|{num}
 escape_sequences    0|a|b|f|n|r|t|v|"\\"|"\""|"\'"
 ws  				[ \t\r\f\v]+
+dt                  "int"|"char"|"double"|"float"
 %x MLCOMMENT
 DE "define"
 IN "include"
@@ -533,7 +680,7 @@ IN "include"
 "switch"		{ insert_SymbolTable(yytext, "Keyword");  return SWITCH;}
 "case"			{ insert_SymbolTable(yytext, "Keyword");  return CASE;}
 "default"		{ insert_SymbolTable(yytext, "Keyword");  return DEFAULT;}
-
+("*")+(" ")*(_|{alpha})({alpha}|{alpha}|_)*   {strcpy(current_identifier,find_pointer_name(yytext));insert_SymbolTable(yytext, "Pointer");  return POINTER;}
 ("\"")[^\n\"]*("\"")                         {strcpy(current_value,yytext); insert_ConstantTable(yytext,"String Constant"); return string_constant;}        
 ("\"")[^\n\"]*                               { printf("Line No. %d ERROR: UNCLOSED STRING - %s\n", yylineno, yytext); return 0;}
 ("\'")(("\\"({escape_sequences}))|.)("\'")   {strcpy(current_value,yytext); insert_ConstantTable(yytext,"Character Constant"); return character_constant;}
@@ -547,7 +694,7 @@ IN "include"
 
 "+"											 {return *yytext;}
 "-"											 {return *yytext;}
-"*"											 {return *yytext;}
+"*"                                          {return *yytext;}
 "/"											 {return *yytext;}
 "="											 {return *yytext;}
 "%"											 {return *yytext;}

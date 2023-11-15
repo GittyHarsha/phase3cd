@@ -12,17 +12,24 @@
 	void remove_scope (int );
 	int check_scope(char*);
 	int check_function(char *);
+	void insert_pointer_type();
+	void insert_pointer_value();
+	void insert_pointer_parameters();
 	void insert_SymbolTable_nest(char*, int);
 	void insert_SymbolTable_paramscount(char*, int);
 	int getSTparamscount(char*);
 	int check_duplicate(char*);
+	int check_pointer_duplicate(char*);
 	int check_declaration(char*, char *);
 	int check_params(char*);
 	int duplicate(char *s);
 	int check_array(char*);
+	void insert_pointer_parameters();
+	char* find_pointer_name(char* );
+	void insert_pointer_SymbolTable_function(char*);
 	void insert_SymbolTable_function(char*);
 	char gettype(char*,int);
-
+    int search_pointer_SymbolTable(char*);
 	extern int flag;
 	int insert_flag = 0;
 
@@ -36,7 +43,10 @@
 	char currfunccall[100];
 	extern int params_count;
 	int call_params_count;
-
+	int cur_dim_count=0;
+	int cur_arr_dim[20]={0};
+	int check_dim_count=0;
+	int check_arr_dim[20]={0}; 
 	int nested_loop=0;
 
 	int switch_default_cnt=0;
@@ -45,14 +55,14 @@
 %}
 
 %nonassoc IF
-%token INT CHAR FLOAT DOUBLE LONG SHORT SIGNED UNSIGNED STRUCT UNION
+%token INT CHAR FLOAT DOUBLE LONG SHORT SIGNED UNSIGNED STRUCT UNION POINTER
 %token RETURN MAIN
 %token VOID
 %token WHILE FOR DO
 %token BREAK CONTINUE GOTO
 %token ENDIF
 %token SWITCH CASE DEFAULT
-%expect 2
+%expect 4
 
 %token identifier array_identifier
 %token integer_constant string_constant float_constant character_constant
@@ -98,9 +108,10 @@ structure_dec
 
 structure_content : variable_dec structure_content | ;
 
+
 variable_dec
-			: datatype variables ';'
-			| structure_initialize;
+: datatype variables ';'
+| structure_initialize;
 
 structure_initialize
 			: STRUCT identifier variables;
@@ -116,17 +127,22 @@ identifier_name
 			: identifier { if(check_function(current_identifier))
 						  {yyerror("ERROR: Identifier cannot be same as function name!\n"); exit(8);}
 						  if(duplicate(current_identifier)){yyerror("Duplicate value!\n");exit(0);}insert_SymbolTable_nest(current_identifier,current_nested_val); insert_type(); } extended_identifier
-			| array_identifier {if(duplicate(current_identifier)){yyerror("Duplicate value!\n");exit(0);}insert_SymbolTable_nest(current_identifier,current_nested_val); insert_type();  } extended_identifier;
-
+			| array_identifier {if(duplicate(current_identifier)){yyerror("Duplicate value!\n");exit(0);}insert_SymbolTable_nest(current_identifier,current_nested_val); insert_type();  } extended_identifier
+            | POINTER   {if(duplicate(find_pointer_name(current_identifier))){yyerror("Duplicate value!\n");exit(0);}insert_SymbolTable_nest(find_pointer_name(current_identifier),current_nested_val); insert_pointer_type();} extended_identifier ;
 extended_identifier : array_iden | '='{strcpy(previous_operator,"=");} simple_expression ;
 
 array_iden
-			: '[' array_dims
-			| ;
+: '[' array_dims {cur_dim_count=0;}
+| ;
 
 array_dims
-			: integer_constant {insert_dimensions();} ']' initilization{if($$ < 1) {yyerror("Array must have size greater than 1!\n"); exit(0);} }
-			| ']' string_initilization;
+: dims initilization 
+| ']' string_initilization;
+
+dims
+: integer_constant ']' {cur_arr_dim[cur_dim_count]=$1;/*printf("%d %d %d %d",cur_dim_count,cur_arr_dim[0],cur_arr_dim[1],cur_arr_dim[2]);*/}
+| integer_constant ']' {cur_arr_dim[cur_dim_count]=$1;cur_dim_count++;} '[' dims 
+;
 
 initilization
 			: string_initilization
@@ -136,15 +152,17 @@ initilization
 string_initilization
 			: '='{strcpy(previous_operator,"=");} string_constant { insert_value(); };
 
-array_initialization
-			: '='{strcpy(previous_operator,"=");} '{' array_values '}';
 
-array_values
-			: integer_constant multiple_array_values;
+array_initialization
+: '=' {strcpy(previous_operator,"=");} '{' {check_dim_count=0; check_arr_dim[check_dim_count]++;} array_values '}' { if (cur_arr_dim[check_dim_count]!= check_arr_dim[check_dim_count]){printf("Error in dimension of array\n");exit(0);}for(int _ = 0; _ <= cur_dim_count; _++){cur_arr_dim[_]=0;}cur_dim_count=0; for(int _ = 0; _ <= check_dim_count; _++){check_arr_dim[_]=0;}check_arr_dim[check_dim_count]=0;check_dim_count=0;};
+
 
 multiple_array_values
-			: ',' array_values
-			| ;
+			: ',' {check_arr_dim[check_dim_count]++;} array_values;
+
+array_values: '{' {check_dim_count++; check_arr_dim[check_dim_count]++;}  array_values { if (cur_arr_dim[check_dim_count]!= check_arr_dim[check_dim_count]){printf("Error in dimension of array\n");exit(0);}check_arr_dim[check_dim_count]=0;check_dim_count--;}'}'
+ | array_values multiple_array_values;
+ | constant {};
 
 
 datatype
@@ -171,14 +189,13 @@ function_dec
 			: function_datatype function_parameters;
 
 function_datatype
-			: datatype identifier '('  {strcpy(currfunctype, current_type); check_duplicate(current_identifier); insert_SymbolTable_function(current_identifier);  strcpy(current_function,current_identifier); insert_type();};
-
+			: datatype identifier '('  {strcpy(currfunctype, current_type); check_duplicate(current_identifier); insert_SymbolTable_function(current_identifier);  strcpy(current_function,current_identifier); insert_type();}
+            | datatype POINTER '(' {strcpy(currfunctype, current_type); check_pointer_duplicate(current_identifier); insert_pointer_SymbolTable_function(current_identifier);  strcpy(current_function,current_identifier); insert_type();};
 function_parameters
 			: parameters ')' statement;
 
 parameters
 			: datatype { check_params(current_type); } all_parameter_identifiers {insert_SymbolTable_paramscount(current_function, params_count);} | ;
-
 all_parameter_identifiers
 			: parameter_identifier multiple_parameters;
 
@@ -187,8 +204,8 @@ multiple_parameters
 			| ;
 
 parameter_identifier
-			: identifier {insert_parameters(); insert_type(); insert_SymbolTable_nest(current_identifier,1); params_count++;} extended_parameter;
-
+			: identifier {insert_parameters(); insert_type(); insert_SymbolTable_nest(current_identifier,1); params_count++;} extended_parameter
+            | POINTER    {insert_pointer_parameters(); insert_pointer_type(); insert_SymbolTable_nest(find_pointer_name(current_identifier),1); params_count++;} extended_parameter;
 extended_parameter
 			: '[' ']'
 			| ;
@@ -308,8 +325,8 @@ expression
 
 			| mutable INCREMENT 							{if($1 == 1) $$=1; else $$=-1;}
 			| mutable DECREMENT 							{if($1 == 1) $$=1; else $$=-1;}
-			| simple_expression {if($1 == 1) $$=1; else $$=-1;} ;
-
+			| simple_expression {if($1 == 1) $$=1; else $$=-1;} 
+    //        | mutable '=' immutable {if($1 == 1) $$=1; else $$=-1;};
 
 simple_expression
 			: simple_expression OR_OR and_expression {if($1 == 1 && $3==1) $$=1; else $$=-1;}
@@ -372,7 +389,15 @@ mutable
 			              		$$ = 1;
 			              		else
 			              		$$ = -1;
-			              		};
+			              		}
+			| POINTER {
+			              if(!check_scope(find_pointer_name(current_identifier)))
+			              {printf("%s\n",current_identifier);yyerror("Identifier undeclared\n");exit(0);}
+			              if(gettype(current_identifier,0)=='i' || gettype(current_identifier,1)== 'c')
+			              $$ = 1;
+			              else
+			              $$ = -1;
+			              printf("%d",$$);};
 
 immutable
 			: '(' expression ')' {if($2==1) $$=1; else $$=-1;}
@@ -385,6 +410,22 @@ call
 			             { yyerror("Function not declared"); exit(0);}
 			             insert_SymbolTable_function(current_identifier);
 						 strcpy(currfunccall,current_identifier);
+			             } arguments ')'
+						 { if(strcmp(currfunccall,"printf"))
+							{
+								if(getSTparamscount(currfunccall)!=call_params_count)
+								{
+									yyerror("Number of parameters not same as number of arguments during function call!");
+									//printf("Number of arguments in function call %s doesn't match number of parameters\n", currfunccall);
+									exit(8);
+								}
+							}
+						 }
+			| POINTER '(' { strcpy(previous_operator,"(");
+			             if(!check_declaration(find_pointer_name(current_identifier), "Function"))
+			             { yyerror("Function not declared"); exit(0);}
+			             insert_SymbolTable_function(find_pointer_name(current_identifier));
+						 strcpy(currfunccall,find_pointer_name(current_identifier));
 			             } arguments ')'
 						 { if(strcmp(currfunccall,"printf"))
 							{
@@ -458,6 +499,10 @@ void insert_type()
 {
 	insert_SymbolTable_type(current_identifier,current_type);
 }
+void insert_pointer_type()
+{
+	insert_SymbolTable_type(find_pointer_name(current_identifier),current_type);
+}
 
 void insert_value()
 {
@@ -466,6 +511,12 @@ void insert_value()
 	}
 }
 
+void insert_pointer_value()
+{
+	if(strcmp(previous_operator, "=") == 0)
+	{	insert_SymbolTable_value(current_identifier,current_value);
+	}
+}
 void insert_dimensions()
 {
     insert_SymbolTable_arraydim(current_identifier, current_value);
@@ -475,7 +526,10 @@ void insert_parameters()
 {
     insert_SymbolTable_funcparam(current_function, current_identifier);
 }
-
+void insert_pointer_parameters()
+{
+    insert_SymbolTable_funcparam(current_function, find_pointer_name(current_identifier));
+}
 int yywrap()
 {
 	return 1;

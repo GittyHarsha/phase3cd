@@ -4,7 +4,6 @@
 int main()
 {
 	//This is the first test program.
-	int a;
 	/* This is the declaration
 	of an integer value */
 	
